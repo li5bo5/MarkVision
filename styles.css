@@ -1,0 +1,333 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f5f5f5;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 头部样式 */
+.header {
+    background-color: #fff;
+    border-bottom: 1px solid #ddd;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    z-index: 2;
+}
+
+.logo {
+    font-weight: bold;
+    font-size: 18px;
+    color: #333;
+}
+
+.menu {
+    display: flex;
+    gap: 20px;
+}
+
+.menu span {
+    cursor: pointer;
+    color: #333;
+}
+
+.menu span:hover {
+    color: #1e88e5;
+}
+
+.toolbar {
+    display: flex;
+    gap: 10px;
+}
+
+.toolbar button {
+    padding: 5px 10px;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.toolbar button:hover {
+    background-color: #e0e0e0;
+}
+
+/* 主容器样式 */
+.container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    border-top: 1px solid #ddd;
+}
+
+/* 编辑器面板 */
+.editor-panel {
+    flex: 1;
+    border-right: 2px solid #f00; /* 红色分割线，模拟截图效果 */
+    background-color: #fff;
+    overflow: auto;  /* 修改为auto，允许滚动 */
+    position: relative;
+    padding: 10px;
+}
+
+#markdown-input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    resize: none;
+    outline: none;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #333;
+    padding: 10px;
+    overflow: visible; /* 确保输入区域内容可见并可滚动 */
+}
+
+/* 预览面板 */
+.preview-panel {
+    flex: 1;
+    background-color: #fff;
+    overflow: auto;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    /* 确保预览面板可见 */
+    visibility: visible;
+    opacity: 1;
+    min-height: 100%;
+    height: auto;
+}
+
+/* 预览内容样式 */
+.nice-sidebar-preview-type {
+    padding: 25px 30px;
+    font-size: 16px;
+    line-height: 1.6;
+    color: black;
+    width: 100%;
+    max-width: 776px;
+    word-spacing: 0px;
+    letter-spacing: 0px;
+    word-break: break-word;
+    word-wrap: break-word;
+    text-align: justify;
+    font-family: Optima-Regular, Optima, PingFangSC-light, PingFangTC-light, 'PingFang SC', Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.1);
+    /* 确保预览内容可见 */
+    visibility: visible;
+    opacity: 1;
+    min-height: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+/* Markdown 样式 */
+.nice-sidebar-preview-type h1,
+.nice-sidebar-preview-type h2,
+.nice-sidebar-preview-type h3,
+.nice-sidebar-preview-type h4,
+.nice-sidebar-preview-type h5,
+.nice-sidebar-preview-type h6 {
+    margin-top: 30px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    color: black;
+}
+
+.nice-sidebar-preview-type h1 {
+    font-size: 24px;
+}
+
+.nice-sidebar-preview-type h2 {
+    font-size: 22px;
+}
+
+.nice-sidebar-preview-type h3 {
+    font-size: 20px;
+}
+
+.nice-sidebar-preview-type h4 {
+    font-size: 18px;
+}
+
+.nice-sidebar-preview-type h5,
+.nice-sidebar-preview-type h6 {
+    font-size: 16px;
+}
+
+.nice-sidebar-preview-type p {
+    font-size: 16px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    margin: 0;
+    line-height: 26px;
+    color: black;
+}
+
+.nice-sidebar-preview-type ul, 
+.nice-sidebar-preview-type ol {
+    margin-top: 8px;
+    margin-bottom: 8px;
+    padding-left: 25px;
+    color: black;
+}
+
+.nice-sidebar-preview-type ul {
+    list-style-type: disc;
+}
+
+.nice-sidebar-preview-type ul ul {
+    list-style-type: square;
+}
+
+.nice-sidebar-preview-type ol {
+    list-style-type: decimal;
+}
+
+.nice-sidebar-preview-type li {
+    margin-bottom: 5px;
+    line-height: 26px;
+    text-align: left;
+    color: rgb(1, 1, 1);
+    font-weight: 500;
+}
+
+.nice-sidebar-preview-type code {
+    background-color: #f6f8fa;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 13px;
+}
+
+.nice-sidebar-preview-type pre {
+    background-color: #f6f8fa;
+    padding: 16px;
+    border-radius: 3px;
+    overflow: auto;
+    margin-bottom: 16px;
+}
+
+.nice-sidebar-preview-type pre code {
+    background-color: transparent;
+    padding: 0;
+}
+
+.nice-sidebar-preview-type blockquote {
+    display: block;
+    font-size: 0.9em;
+    overflow: auto;
+    border-left: 3px solid rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.05);
+    color: #6a737d;
+    padding: 10px 20px 10px 20px;
+    margin-bottom: 20px;
+    margin-top: 20px;
+}
+
+.nice-sidebar-preview-type blockquote p {
+    margin: 0px;
+    color: black;
+    line-height: 26px;
+}
+
+.nice-sidebar-preview-type img {
+    max-width: 100%;
+}
+
+.nice-sidebar-preview-type a {
+    text-decoration: none;
+    color: #1e6bb8;
+    word-wrap: break-word;
+    font-weight: bold;
+    border-bottom: 1px solid #1e6bb8;
+}
+
+.nice-sidebar-preview-type strong {
+    font-weight: bold;
+    color: black;
+}
+
+.nice-sidebar-preview-type table {
+    display: table;
+    text-align: left;
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+}
+
+.nice-sidebar-preview-type table th,
+.nice-sidebar-preview-type table td {
+    padding: 8px 16px;
+    border: 1px solid #dfe2e5;
+}
+
+.nice-sidebar-preview-type table th {
+    background-color: #f6f8fa;
+    font-weight: bold;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+    
+    .editor-panel, 
+    .preview-panel {
+        width: 100%;
+        height: 50%;
+        visibility: visible !important;
+        opacity: 1 !important;
+        display: block !important;
+    }
+    
+    .editor-panel {
+        border-right: none;
+        border-bottom: 2px solid #f00;
+    }
+}
+
+/* 数学公式样式 */
+.math-inline {
+    display: inline-block;
+    margin: 0 2px;
+}
+
+.math-block {
+    display: block;
+    margin: 16px 0;
+    text-align: center;
+}
+
+.nice-sidebar-preview-type .MathJax {
+    outline: none;
+}
+
+.code-line {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    line-height: 1.6;
+}
+
+/* 错误消息样式 */
+.error-message {
+    color: #d32f2f;
+    background-color: #ffebee;
+    padding: 15px;
+    border-radius: 4px;
+    border-left: 4px solid #d32f2f;
+    margin: 10px 0;
+    font-size: 14px;
+    line-height: 1.5;
+} 

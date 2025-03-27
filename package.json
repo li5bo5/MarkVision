@@ -1,0 +1,39 @@
+{
+  "name": "markvision",
+  "version": "1.0.0",
+  "description": "MarkVision - Markdown预览格式化工具",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win zip --publish never"
+  },
+  "keywords": [
+    "markdown",
+    "preview",
+    "editor"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^25.5.0",
+    "electron-builder": "^22.14.13"
+  },
+  "build": {
+    "appId": "com.yourcompany.markvision",
+    "productName": "MarkVision",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/**/*"
+    ],
+    "win": {
+      "target": "zip",
+      "artifactName": "${productName}-${version}.zip",
+      "icon": "icon.ico"
+    },
+    "publish": null
+  }
+}

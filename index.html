@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkVision</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- 直接引入marked库，确保在Electron环境下可用 -->
+    <script src="./assets/marked.min.js"></script>
+    
+    <!-- 添加备用方案，确保marked库一定能加载 -->
+    <script>
+    window.addEventListener('DOMContentLoaded', function() {
+        // 检查marked库是否成功加载
+        if (typeof marked === 'undefined') {
+            console.error('本地marked库加载失败，尝试使用CDN');
+            
+            // 尝试从CDN加载
+            const cdnScript = document.createElement('script');
+            cdnScript.src = "https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js";
+            cdnScript.onload = function() {
+                console.log('CDN marked库加载成功');
+                initializeMarked();
+                renderMarkdown();
+            };
+            cdnScript.onerror = function() {
+                // 如果CDN也失败，尝试使用备用CDN
+                console.error('主CDN加载失败，尝试备用CDN');
+                const backupScript = document.createElement('script');
+                backupScript.src = "https://unpkg.com/marked@4.3.0/marked.min.js";
+                backupScript.onload = function() {
+                    console.log('备用CDN marked库加载成功');
+                    initializeMarked();
+                    renderMarkdown();
+                };
+                backupScript.onerror = function() {
+                    console.error('所有marked库加载尝试均失败');
+                    alert('Markdown渲染库加载失败，请检查网络连接或重新启动应用');
+                };
+                document.head.appendChild(backupScript);
+            };
+            document.head.appendChild(cdnScript);
+        } else {
+            console.log('本地marked库加载成功');
+            initializeMarked();
+        }
+    });
+    
+    // 初始化marked库设置
+    function initializeMarked() {
+        if (typeof marked === 'function') {
+            // 旧版本的marked
+            marked.setOptions({
+                gfm: true,
+                breaks: true,
+                sanitize: false,
+                smartLists: true,
+                smartypants: true
+            });
+            console.log('使用旧版本marked库初始化完成');
+        } else if (typeof marked === 'object' && typeof marked.parse === 'function') {
+            // 新版本的marked
+            marked.setOptions({
+                gfm: true,
+                breaks: true,
+                sanitize: false,
+                smartLists: true,
+                smartypants: true
+            });
+            console.log('使用新版本marked库初始化完成');
+        } else {
+            console.error('marked库格式不正确，无法初始化');
+        }
+    }
+    </script>
+    
+    <!-- MathJax配置 -->
+    <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+    </script>
+    
+    <!-- 加载MathJax库 -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const script = document.createElement('script');
+        script.src = './assets/tex-svg.js';
+        script.onerror = function() {
+            console.error('本地MathJax库加载失败，尝试使用CDN');
+            const fallbackScript = document.createElement('script');
+            fallbackScript.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js";
+            fallbackScript.onerror = function() {
+                console.error('MathJax CDN也加载失败');
+            };
+            document.head.appendChild(fallbackScript);
+        };
+        document.head.appendChild(script);
+    });
+    </script>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">MarkVision</div>
+        <!-- 菜单项和按钮已移除 -->
+    </div>
+    
+    <div class="container">
+        <div class="editor-panel">
+            <textarea id="markdown-input" placeholder="在这里输入Markdown文本..."></textarea>
+        </div>
+        <div class="preview-panel">
+            <div class="nice-sidebar-preview-type" id="preview-content"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
