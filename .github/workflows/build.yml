@@ -9,10 +9,10 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       
       - name: 设置Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
           node-version: 16
           
@@ -28,7 +28,7 @@ jobs:
         run: npm run build
         
       - name: 构建Tauri应用
-        uses: tauri-apps/tauri-action@v0.4.0
+        uses: tauri-apps/tauri-action@v0.3.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -44,5 +44,5 @@ jobs:
         with:
           name: windows-installer
           path: |
-            src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/nsis/*-setup.exe
+            ./src-tauri/target/release/bundle/msi/*.msi
+            ./src-tauri/target/release/bundle/nsis/*-setup.exe
