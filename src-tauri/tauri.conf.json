@@ -54,7 +54,8 @@
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
         "timestampUrl": ""
-      }
+      },
+      "artifactName": "MarkVision_${version}_${os}_${arch}.${ext}"
     },
     "security": {
       "csp": null

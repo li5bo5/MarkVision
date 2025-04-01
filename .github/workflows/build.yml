@@ -133,6 +133,9 @@ jobs:
           includeUpdaterJson: true
           includeRelease: true
           args: --verbose --target x86_64-pc-windows-msvc
+          artifactPatterns: |
+            **/release/*.exe
+            **/release/bundle/**/*
 
       # 创建便携式版本
       - name: 创建便携式版本
@@ -143,19 +146,42 @@ jobs:
           
           $appName = "MarkVision"
           $portableDir = "portable-$appName-v$version"
-          $releaseDir = "src-tauri/target/release"
+          
+          # 查找执行文件的多个可能路径
+          $possiblePaths = @(
+            "src-tauri\target\release\$appName.exe",
+            "src-tauri\target\x86_64-pc-windows-msvc\release\$appName.exe",
+            "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\$appName.exe"
+          )
+          
+          $exePath = $null
+          foreach ($path in $possiblePaths) {
+            Write-Host "检查路径: $path"
+            if (Test-Path $path) {
+              $exePath = $path
+              Write-Host "找到可执行文件: $exePath"
+              break
+            }
+          }
+          
+          if (-not $exePath) {
+            Write-Host "错误: 无法找到 $appName.exe 文件"
+            Write-Host "列出所有可能的路径:"
+            Get-ChildItem -Path "src-tauri\target" -Recurse -Filter "*.exe" | Select-Object FullName
+            exit 1
+          }
           
           # 创建便携式目录
           New-Item -Path $portableDir -ItemType Directory -Force
           
           # 复制主程序和所需文件
-          Copy-Item -Path "$releaseDir/$appName.exe" -Destination "$portableDir/"
+          Copy-Item -Path $exePath -Destination "$portableDir\"
           
           # 需要的DLL和资源文件(如果有的话)会由Tauri自动打包到exe中，无需额外复制
           
           # 创建配置和数据目录
-          New-Item -Path "$portableDir/config" -ItemType Directory -Force
-          New-Item -Path "$portableDir/data" -ItemType Directory -Force
+          New-Item -Path "$portableDir\config" -ItemType Directory -Force
+          New-Item -Path "$portableDir\data" -ItemType Directory -Force
           
           # 创建简单的说明文件
           @"
@@ -167,14 +193,14 @@ jobs:
           3. 用户数据将存储在data文件夹中
           
           此便携版无需安装，可直接在U盘等移动设备上运行。
-          "@ | Out-File -FilePath "$portableDir/readme.txt" -Encoding utf8
+          "@ | Out-File -FilePath "$portableDir\readme.txt" -Encoding utf8
           
           # 压缩便携版文件夹
-          Compress-Archive -Path $portableDir/* -DestinationPath "$appName-portable-v$version.zip" -Force
+          Compress-Archive -Path "$portableDir\*" -DestinationPath "$appName-portable-v$version.zip" -Force
           
           # 输出创建的文件路径供后续步骤使用
           echo "便携版已创建: $appName-portable-v$version.zip"
-          echo "PORTABLE_ZIP=$appName-portable-v$version.zip" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding UTF8
+          echo "PORTABLE_ZIP=$appName-portable-v$version.zip" >> $env:GITHUB_ENV
         shell: pwsh
 
       # 上传便携版到Release
