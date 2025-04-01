@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MarkVision - Markdown预览工具</title>
+  <link rel="stylesheet" href="/src/styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true,
+        processEnvironments: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+        ignoreHtmlClass: 'tex2jax_ignore',
+        processHtmlClass: 'tex2jax_process'
+      },
+      startup: {
+        pageReady: function() {
+          return MathJax.startup.defaultPageReady().then(function() {
+            console.log('MathJax初始化完成');
+          });
+        }
+      }
+    };
+  </script>
+  <script type="text/javascript" id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+  </script>
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <div class="logo">
+        <img src="/public/logo.svg" alt="MarkVision" class="logo-img">
+        <span>MarkVision</span>
+      </div>
+      <div class="actions">
+        <button id="open-btn" class="btn"><i class="fa fa-folder-open-o"></i> 打开</button>
+        <button id="export-pdf-btn" class="btn"><i class="fa fa-file-pdf-o"></i> 导出PDF</button>
+      </div>
+    </header>
+    
+    <main class="editor-container">
+      <div class="editor-panel">
+        <div class="editor-toolbar">
+          <span class="editor-label">原文</span>
+          <div class="view-actions">
+            <button id="clear-btn" class="tool-btn" title="清空"><i class="fa fa-trash"></i></button>
+          </div>
+        </div>
+        <textarea id="markdown-input" placeholder="在此输入Markdown内容..."></textarea>
+      </div>
+      <div class="preview-panel">
+        <div class="preview-toolbar">
+          <span class="preview-label">预览</span>
+          <div class="view-options">
+          </div>
+        </div>
+        <div id="preview-content" class="nice-sidebar-preview-type"></div>
+      </div>
+    </main>
+
+    <footer class="app-footer">
+      <div class="status-bar">
+        <span id="word-count">0 字符 | 0 单词</span>
+        <span class="separator">|</span>
+        <span id="save-status">未保存</span>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
