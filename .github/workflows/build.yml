@@ -27,7 +27,7 @@ jobs:
       - name: 构建前端
         run: npm run build
         
-      - name: 构建Tauri应用
+      - name: 构建并发布Tauri应用
         uses: tauri-apps/tauri-action@v0.3.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -37,12 +37,3 @@ jobs:
           releaseBody: "MarkVision Windows版本发布"
           releaseDraft: true
           prerelease: false
-      
-      # 添加明确的上传构建产物步骤
-      - name: 上传Windows安装程序
-        uses: actions/upload-artifact@v2
-        with:
-          name: windows-installer
-          path: |
-            ./src-tauri/target/release/bundle/msi/*.msi
-            ./src-tauri/target/release/bundle/nsis/*-setup.exe
