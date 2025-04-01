@@ -39,9 +39,31 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: app-v__VERSION__
+          tagName: v__VERSION__
           releaseName: "MarkVision v__VERSION__"
-          releaseBody: "MarkVision便携版（免安装）发布"
-          releaseDraft: true
+          releaseBody: "MarkVision便携版发布，包含可执行文件和安装包"
+          releaseDraft: false
           prerelease: false
+          includeUpdaterJson: true
+          includeRelease: true
           args: --target x86_64-pc-windows-msvc
+          
+      # 确保找到并发布便携版exe文件
+      - name: 查找构建产物
+        id: find-artifacts
+        run: |
+          echo "::set-output name=portable_exe::$(Get-ChildItem -Path './src-tauri/target/x86_64-pc-windows-msvc/release/MarkVision.exe' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)"
+          echo "::set-output name=setup_exe::$(Get-ChildItem -Path './src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)"
+          echo "::set-output name=msi_installer::$(Get-ChildItem -Path './src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName)"
+        shell: pwsh
+        
+      - name: 手动上传便携版到Release
+        if: steps.find-artifacts.outputs.portable_exe != ''
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.find-artifacts.outputs.portable_exe }}
+          tag_name: v__VERSION__
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
