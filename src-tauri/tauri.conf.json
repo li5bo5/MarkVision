@@ -53,7 +53,10 @@
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
+        "timestampUrl": "",
+        "wix": {
+          "skipMsi": true
+        }
       }
     },
     "security": {

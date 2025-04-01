@@ -35,12 +35,13 @@ jobs:
         run: npm run build
         
       - name: 构建并发布Tauri应用
-        uses: tauri-apps/tauri-action@v0.3.1
+        uses: tauri-apps/tauri-action@v0.4.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: app-v__VERSION__
           releaseName: "MarkVision v__VERSION__"
-          releaseBody: "MarkVision Windows版本发布"
+          releaseBody: "MarkVision便携版（免安装）发布"
           releaseDraft: true
           prerelease: false
+          args: --target x86_64-pc-windows-msvc
