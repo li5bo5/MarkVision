@@ -52,17 +52,45 @@ jobs:
           # 组合新版本号
           $newVersion = "$major.$minor.$patch"
           
-          # 更新package.json (指定 UTF8 编码)
-          $packageJsonPath = "./package.json"
-          $packageJson = Get-Content -Path $packageJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
-          $packageJson.version = $newVersion
-          $packageJson | ConvertTo-Json -Depth 100 | Out-File -FilePath $packageJsonPath -Encoding UTF8
+          # 更新package.json (指定 UTF8 编码，添加错误处理)
+          try {
+              $packageJsonPath = "./package.json"
+              # 检查文件是否存在
+              if (-not (Test-Path $packageJsonPath)) {
+                  Write-Error "File not found: $packageJsonPath"
+                  exit 1
+              }
+              $packageJsonContent = Get-Content -Path $packageJsonPath -Raw -Encoding UTF8
+              $packageJson = $packageJsonContent | ConvertFrom-Json -ErrorAction Stop # 确保解析错误时停止
+              $packageJson.version = $newVersion
+              $packageJson | ConvertTo-Json -Depth 100 | Out-File -FilePath $packageJsonPath -Encoding UTF8
+              Write-Host "Successfully updated package.json"
+          } catch {
+              Write-Error "Failed to update package.json: $($_.Exception.Message)"
+              # 输出原始文件内容以便调试
+              Write-Error "Original package.json content: $packageJsonContent"
+              exit 1 # Exit immediately on error
+          }
           
-          # 更新tauri.conf.json (指定 UTF8 编码)
-          $tauriConfPath = "./src-tauri/tauri.conf.json"
-          $tauriConf = Get-Content -Path $tauriConfPath -Raw -Encoding UTF8 | ConvertFrom-Json
-          $tauriConf.package.version = $newVersion
-          $tauriConf | ConvertTo-Json -Depth 100 | Out-File -FilePath $tauriConfPath -Encoding UTF8
+          # 更新tauri.conf.json (指定 UTF8 编码，添加错误处理)
+          try {
+              $tauriConfPath = "./src-tauri/tauri.conf.json"
+              # 检查文件是否存在
+              if (-not (Test-Path $tauriConfPath)) {
+                  Write-Error "File not found: $tauriConfPath"
+                  exit 1
+              }
+              $tauriConfContent = Get-Content -Path $tauriConfPath -Raw -Encoding UTF8
+              $tauriConf = $tauriConfContent | ConvertFrom-Json -ErrorAction Stop # 确保解析错误时停止
+              $tauriConf.package.version = $newVersion
+              $tauriConf | ConvertTo-Json -Depth 100 | Out-File -FilePath $tauriConfPath -Encoding UTF8
+              Write-Host "Successfully updated tauri.conf.json"
+          } catch {
+              Write-Error "Failed to update tauri.conf.json: $($_.Exception.Message)"
+              # 输出原始文件内容以便调试
+              Write-Error "Original tauri.conf.json content: $tauriConfContent"
+              exit 1 # Exit immediately on error
+          }
           
           # 输出新版本号供后续步骤使用 (保持之前的修复)
           "NEW_VERSION=$newVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding UTF8
