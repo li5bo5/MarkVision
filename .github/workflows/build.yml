@@ -40,7 +40,7 @@ jobs:
       
       # 添加明确的上传构建产物步骤
       - name: 上传Windows安装程序
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: windows-installer
           path: |
