@@ -4,6 +4,7 @@ import { initUI } from './modules/ui.js';
 import { initEvents } from './modules/events.js';
 import { setupMarkdownRenderer } from './modules/renderer.js';
 import { initStorage } from './modules/storage.js';
+import { initPortableMode } from './modules/portable.js';
 
 // 初始化代码高亮
 marked.setOptions({
@@ -18,7 +19,10 @@ marked.setOptions({
 });
 
 // 应用初始化
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // 初始化便携式模式检测
+  await initPortableMode();
+  
   // 初始化UI
   initUI();
   
@@ -53,6 +57,7 @@ function getExampleContent() {
 - 滚动同步
 - 代码高亮
 - 导出PDF
+- 便携模式支持
 
 ### 代码示例
 
@@ -70,6 +75,7 @@ function hello() {
 | 滚动同步 | ✅ |
 | 代码高亮 | ✅ |
 | 导出PDF | ✅ |
+| 便携模式 | ✅ |
 
 ### 数学公式
 

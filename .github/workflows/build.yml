@@ -132,19 +132,66 @@ jobs:
           includeRelease: true
           args: --verbose --target x86_64-pc-windows-msvc
 
-      # 移除查找构建产物 (find-artifacts) 步骤
-      # 移除手动上传便携版 (softprops/action-gh-release) 步骤
-      # 移除上传安装包 (softprops/action-gh-release) 步骤
-      # tauri-apps/tauri-action@v0 配合 includeRelease: true 会自动处理 Release 和附件上传
+      # 创建便携式版本
+      - name: 创建便携式版本
+        run: |
+          # 设置版本变量和目标目录
+          $version = "${{ steps.version.outputs.NEW_VERSION }}"
+          if (-not $version) { $version = "1.0.0" }  # 默认版本号，以防提取失败
+          
+          $appName = "MarkVision"
+          $portableDir = "portable-$appName-v$version"
+          $releaseDir = "src-tauri/target/release"
+          
+          # 创建便携式目录
+          New-Item -Path $portableDir -ItemType Directory -Force
+          
+          # 复制主程序和所需文件
+          Copy-Item -Path "$releaseDir/$appName.exe" -Destination "$portableDir/"
+          
+          # 需要的DLL和资源文件(如果有的话)会由Tauri自动打包到exe中，无需额外复制
+          
+          # 创建配置和数据目录
+          New-Item -Path "$portableDir/config" -ItemType Directory -Force
+          New-Item -Path "$portableDir/data" -ItemType Directory -Force
+          
+          # 创建简单的说明文件
+          @"
+          $appName 便携版 v$version
+          
+          使用说明:
+          1. 解压后直接运行 $appName.exe
+          2. 程序会在当前目录的config文件夹中保存配置
+          3. 用户数据将存储在data文件夹中
+          
+          此便携版无需安装，可直接在U盘等移动设备上运行。
+          "@ | Out-File -FilePath "$portableDir/readme.txt" -Encoding utf8
+          
+          # 压缩便携版文件夹
+          Compress-Archive -Path $portableDir/* -DestinationPath "$appName-portable-v$version.zip" -Force
+          
+          # 输出创建的文件路径供后续步骤使用
+          echo "便携版已创建: $appName-portable-v$version.zip"
+          echo "PORTABLE_ZIP=$appName-portable-v$version.zip" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding UTF8
+        shell: pwsh
 
-      # 添加调试步骤：检查构建产物目录 (使用 pwsh) - 可选保留
-      - name: 检查构建产物目录 (可选)
+      # 上传便携版到Release
+      - name: 上传便携版到Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.NEW_VERSION }}
+          files: |
+            ${{ env.PORTABLE_ZIP }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      # 检查构建产物目录
+      - name: 检查构建产物目录
         if: always()
         run: |
           $targetDir = "src-tauri/target"
           echo "--- Target Directory Structure ---"
           if (Test-Path $targetDir) {
-            Get-ChildItem -Path $targetDir -Recurse | Select-Object FullName
+            Get-ChildItem -Path $targetDir -Recurse -Depth 2 | Select-Object FullName
           } else {
             echo "Directory not found: $targetDir"
           }
@@ -156,6 +203,9 @@ jobs:
           } else {
             echo "Directory not found: $releaseDir"
           }
+          
+          echo "`n--- Portable Package ---"
+          Get-ChildItem -Path "*.zip" | Select-Object FullName
         shell: pwsh
           
       # 提交版本号更新 (添加 [skip ci])
