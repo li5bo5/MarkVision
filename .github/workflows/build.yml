@@ -37,9 +37,3 @@ jobs:
           releaseBody: "MarkVision Windows版本发布"
           releaseDraft: true
           prerelease: false
-          
-      - name: 上传构建产物
-        uses: actions/upload-artifact@v2.3.1
-        with:
-          name: MarkVision-windows
-          path: src-tauri/target/release/bundle/
