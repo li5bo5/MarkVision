@@ -49,14 +49,11 @@
       },
       "resources": [],
       "shortDescription": "Markdown预览和编辑工具",
-      "targets": "all",
+      "targets": ["app"],
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": "",
-        "wix": {
-          "skipMsi": true
-        }
+        "timestampUrl": ""
       }
     },
     "security": {
