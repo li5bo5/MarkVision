@@ -92,9 +92,11 @@ jobs:
               exit 1 # Exit immediately on error
           }
           
-          # 输出新版本号供后续步骤使用 (保持之前的修复)
-          "NEW_VERSION=$newVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding UTF8
+          # 输出新版本号供后续步骤使用
+          echo "NEW_VERSION=$newVersion" >> $env:GITHUB_OUTPUT
           echo "新版本号: v$newVersion"
+          # 确保脚本以成功代码结束
+          exit 0
         shell: pwsh
           
       - name: 安装Rust
