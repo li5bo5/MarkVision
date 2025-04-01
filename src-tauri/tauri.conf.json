@@ -49,20 +49,11 @@
       },
       "resources": [],
       "shortDescription": "Markdown预览和编辑工具",
-      "targets": ["app", "msi", "updater"],
+      "targets": ["app", "updater"],
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": "",
-        "wix": {
-          "language": ["zh-CN"],
-          "template": "wix/main.wxs"
-        },
-        "nsis": {
-          "displayLanguageSelector": true,
-          "languages": ["SimpChinese"],
-          "installMode": "currentUser"
-        }
+        "timestampUrl": ""
       }
     },
     "security": {

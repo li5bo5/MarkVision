@@ -127,7 +127,7 @@ jobs:
         with:
           tagName: v${{ steps.version.outputs.NEW_VERSION }}
           releaseName: "MarkVision v${{ steps.version.outputs.NEW_VERSION }}"
-          releaseBody: "MarkVision 发布版本，包含可执行文件和安装包。"
+          releaseBody: "MarkVision 发布版本，包含可执行文件。"
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
