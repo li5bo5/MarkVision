@@ -16,16 +16,16 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       
       - name: 设置Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: 16
-      
-      # 添加自动版本号更新步骤
+          cache: 'npm'
+
       - name: 自动更新版本号
         id: version
         run: |
@@ -52,122 +52,90 @@ jobs:
           # 组合新版本号
           $newVersion = "$major.$minor.$patch"
           
-          # 更新package.json
-          $packageJson = Get-Content -Path ./package.json -Raw | ConvertFrom-Json
+          # 更新package.json (指定 UTF8 编码)
+          $packageJsonPath = "./package.json"
+          $packageJson = Get-Content -Path $packageJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
           $packageJson.version = $newVersion
-          $packageJson | ConvertTo-Json -Depth 100 | Set-Content -Path ./package.json
+          $packageJson | ConvertTo-Json -Depth 100 | Out-File -FilePath $packageJsonPath -Encoding UTF8
           
-          # 更新tauri.conf.json
-          $tauriConf = Get-Content -Path ./src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          # 更新tauri.conf.json (指定 UTF8 编码)
+          $tauriConfPath = "./src-tauri/tauri.conf.json"
+          $tauriConf = Get-Content -Path $tauriConfPath -Raw -Encoding UTF8 | ConvertFrom-Json
           $tauriConf.package.version = $newVersion
-          $tauriConf | ConvertTo-Json -Depth 100 | Set-Content -Path ./src-tauri/tauri.conf.json
+          $tauriConf | ConvertTo-Json -Depth 100 | Out-File -FilePath $tauriConfPath -Encoding UTF8
           
-          # 输出新版本号供后续步骤使用
-          "NEW_VERSION=$newVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          # 输出新版本号供后续步骤使用 (保持之前的修复)
+          "NEW_VERSION=$newVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding UTF8
           echo "新版本号: v$newVersion"
         shell: pwsh
           
       - name: 安装Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
           
-      - name: 安装依赖
-        run: npm install
+      - name: 安装依赖 (使用 npm ci)
+        run: npm ci
         
       - name: 构建前端
         run: npm run build
         
-      # 添加调试步骤
-      - name: 检查Tauri配置
+      # 添加调试步骤 (使用 pwsh)
+      - name: 检查Tauri配置和目录结构
         run: |
-          cat src-tauri/tauri.conf.json
-          echo "当前目录结构:"
-          dir /s /b src-tauri\
-        shell: cmd
+          echo "--- Tauri Config ---"
+          Get-Content -Path src-tauri/tauri.conf.json -Encoding UTF8
+          echo "`n--- src-tauri Directory ---"
+          Get-ChildItem -Path src-tauri -Recurse | Select-Object FullName
+        shell: pwsh
       
       - name: 构建并发布Tauri应用
         id: tauri_build
-        uses: tauri-apps/tauri-action@v0.4.0
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v${{ steps.version.outputs.NEW_VERSION }}
           releaseName: "MarkVision v${{ steps.version.outputs.NEW_VERSION }}"
-          releaseBody: "MarkVision便携版发布，包含可执行文件和安装包"
+          releaseBody: "MarkVision 发布版本，包含可执行文件和安装包。"
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
           includeRelease: true
           args: --verbose --target x86_64-pc-windows-msvc
-      
-      # 调试步骤：检查构建产物目录
-      - name: 检查构建产物目录
+
+      # 移除查找构建产物 (find-artifacts) 步骤
+      # 移除手动上传便携版 (softprops/action-gh-release) 步骤
+      # 移除上传安装包 (softprops/action-gh-release) 步骤
+      # tauri-apps/tauri-action@v0 配合 includeRelease: true 会自动处理 Release 和附件上传
+
+      # 添加调试步骤：检查构建产物目录 (使用 pwsh) - 可选保留
+      - name: 检查构建产物目录 (可选)
+        if: always()
         run: |
-          echo "检查target目录结构"
-          dir /s /b src-tauri\target
-          echo "-----------------------"
-          echo "检查release目录"
-          dir /s /b src-tauri\target\release || echo "release目录不存在"
-          echo "-----------------------"
-          echo "检查bundle目录"
-          dir /s /b src-tauri\target\release\bundle || echo "bundle目录不存在"
-        shell: cmd
-          
-      # 确保找到并发布便携版exe文件
-      - name: 查找构建产物
-        id: find-artifacts
-        run: |
-          $portableExe = Get-ChildItem -Path "src-tauri\target" -Recurse -Include "MarkVision.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-          $setupExe = Get-ChildItem -Path "src-tauri\target" -Recurse -Include "*setup.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-          $msiInstaller = Get-ChildItem -Path "src-tauri\target" -Recurse -Include "*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-          
-          echo "找到的便携版: $portableExe"
-          echo "找到的安装包: $setupExe"
-          echo "找到的MSI包: $msiInstaller"
-          
-          if ($portableExe) {
-            "PORTABLE_EXE=$portableExe" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $targetDir = "src-tauri/target"
+          echo "--- Target Directory Structure ---"
+          if (Test-Path $targetDir) {
+            Get-ChildItem -Path $targetDir -Recurse | Select-Object FullName
+          } else {
+            echo "Directory not found: $targetDir"
           }
-          if ($setupExe) {
-            "SETUP_EXE=$setupExe" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          }
-          if ($msiInstaller) {
-            "MSI_INSTALLER=$msiInstaller" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          
+          $releaseDir = "src-tauri/target/release"
+          echo "`n--- Release Directory Structure ---"
+          if (Test-Path $releaseDir) {
+            Get-ChildItem -Path $releaseDir -Recurse | Select-Object FullName
+          } else {
+            echo "Directory not found: $releaseDir"
           }
         shell: pwsh
-        
-      - name: 手动上传便携版到Release
-        if: steps.find-artifacts.outputs.PORTABLE_EXE != ''
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ steps.find-artifacts.outputs.PORTABLE_EXE }}
-          tag_name: v${{ steps.version.outputs.NEW_VERSION }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
-      # 上传安装包
-      - name: 上传安装包到Release
-        if: steps.find-artifacts.outputs.SETUP_EXE != '' || steps.find-artifacts.outputs.MSI_INSTALLER != ''
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            ${{ steps.find-artifacts.outputs.SETUP_EXE }}
-            ${{ steps.find-artifacts.outputs.MSI_INSTALLER }}
-          tag_name: v${{ steps.version.outputs.NEW_VERSION }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-      # 提交版本号更新
+      # 提交版本号更新 (添加 [skip ci])
       - name: 提交版本号更新
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add package.json src-tauri/tauri.conf.json
-          git commit -m "自动更新版本号到 v${{ steps.version.outputs.NEW_VERSION }}"
+          git commit -m "自动更新版本号到 v${{ steps.version.outputs.NEW_VERSION }} [skip ci]"
           git push
         shell: pwsh
