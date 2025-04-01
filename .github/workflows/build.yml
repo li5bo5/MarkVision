@@ -121,7 +121,7 @@ jobs:
       
       - name: 构建并发布Tauri应用
         id: tauri_build
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v0.5.20
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -132,10 +132,9 @@ jobs:
           prerelease: false
           includeUpdaterJson: true
           includeRelease: true
+          includeDebug: false
+          tauriScript: "npm run tauri"
           args: --verbose --target x86_64-pc-windows-msvc
-          artifactPatterns: |
-            **/release/*.exe
-            **/release/bundle/**/*
 
       # 创建便携式版本
       - name: 创建便携式版本
@@ -147,27 +146,60 @@ jobs:
           $appName = "MarkVision"
           $portableDir = "portable-$appName-v$version"
           
-          # 查找执行文件的多个可能路径
+          # 查找执行文件的多个可能路径 (基于Tauri默认输出位置)
           $possiblePaths = @(
             "src-tauri\target\release\$appName.exe",
             "src-tauri\target\x86_64-pc-windows-msvc\release\$appName.exe",
-            "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\$appName.exe"
+            "src-tauri\target\release\bundle\$appName.exe",
+            "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\$appName.exe",
+            "src-tauri\target\release\bundle\nsis\$appName*.exe",
+            "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\$appName*.exe"
           )
           
-          $exePath = $null
+          # 列出所有可能的路径以便调试
+          Write-Host "查找可执行文件的可能路径："
           foreach ($path in $possiblePaths) {
-            Write-Host "检查路径: $path"
-            if (Test-Path $path) {
-              $exePath = $path
-              Write-Host "找到可执行文件: $exePath"
+            Write-Host " - $path"
+          }
+          
+          # 搜索所有可能的执行文件
+          Write-Host "在target目录中搜索所有可执行文件："
+          $allExeFiles = Get-ChildItem -Path "src-tauri\target" -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+          foreach ($file in $allExeFiles) {
+            Write-Host " - 找到: $file"
+          }
+          
+          # 尝试从搜索结果中找到主程序
+          $exePath = $null
+          # 首先检查特定路径
+          foreach ($path in $possiblePaths) {
+            $resolvedPath = Resolve-Path -Path $path -ErrorAction SilentlyContinue
+            if ($resolvedPath) {
+              $exePath = $resolvedPath.Path
+              Write-Host "找到可执行文件(精确路径): $exePath"
               break
+            }
+          }
+          
+          # 如果没找到，尝试通过文件名模式匹配
+          if (-not $exePath -and $allExeFiles) {
+            # 优先选择不在nsis目录下的MarkVision.exe
+            $mainExe = $allExeFiles | Where-Object { 
+              $_ -like "*MarkVision.exe" -and $_ -notlike "*nsis*" 
+            } | Select-Object -First 1
+            
+            if ($mainExe) {
+              $exePath = $mainExe
+              Write-Host "找到可执行文件(通过名称): $exePath"
+            } else {
+              # 退而选择任何其他exe文件
+              $exePath = $allExeFiles | Select-Object -First 1
+              Write-Host "找到可执行文件(替代): $exePath"
             }
           }
           
           if (-not $exePath) {
             Write-Host "错误: 无法找到 $appName.exe 文件"
-            Write-Host "列出所有可能的路径:"
-            Get-ChildItem -Path "src-tauri\target" -Recurse -Filter "*.exe" | Select-Object FullName
             exit 1
           }
           
@@ -175,7 +207,7 @@ jobs:
           New-Item -Path $portableDir -ItemType Directory -Force
           
           # 复制主程序和所需文件
-          Copy-Item -Path $exePath -Destination "$portableDir\"
+          Copy-Item -Path $exePath -Destination "$portableDir\$appName.exe"
           
           # 需要的DLL和资源文件(如果有的话)会由Tauri自动打包到exe中，无需额外复制
           
@@ -201,7 +233,6 @@ jobs:
           # 输出创建的文件路径供后续步骤使用
           echo "便携版已创建: $appName-portable-v$version.zip"
           echo "PORTABLE_ZIP=$appName-portable-v$version.zip" >> $env:GITHUB_ENV
-        shell: pwsh
 
       # 上传便携版到Release
       - name: 上传便携版到Release

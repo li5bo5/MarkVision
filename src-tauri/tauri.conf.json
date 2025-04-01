@@ -49,13 +49,18 @@
       },
       "resources": [],
       "shortDescription": "Markdown预览和编辑工具",
-      "targets": ["app", "updater"],
+      "targets": ["app"],
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      },
-      "artifactName": "MarkVision_${version}_${os}_${arch}.${ext}"
+        "timestampUrl": "",
+        "webviewInstallMode": {
+          "type": "downloadBootstrapper"
+        },
+        "wix": null,
+        "nsis": null,
+        "format": ["executable"]
+      }
     },
     "security": {
       "csp": null
