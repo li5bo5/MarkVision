@@ -2,8 +2,8 @@ name: "构建MarkVision应用"
 
 on:
   push:
-    branches: [ main, master ]  # 支持main或master分支
-  workflow_dispatch:  # 允许手动触发
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build-windows:
@@ -37,3 +37,15 @@ jobs:
           releaseBody: "MarkVision Windows版本发布"
           releaseDraft: true
           prerelease: false
+      
+      - name: 上传MSI安装包
+        uses: actions/upload-artifact@v1
+        with:
+          name: MarkVision-MSI
+          path: src-tauri/target/release/bundle/msi/
+          
+      - name: 上传NSIS安装包
+        uses: actions/upload-artifact@v1
+        with:
+          name: MarkVision-NSIS
+          path: src-tauri/target/release/bundle/nsis/
