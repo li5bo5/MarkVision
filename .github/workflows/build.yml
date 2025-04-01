@@ -63,7 +63,7 @@ jobs:
           $tauriConf | ConvertTo-Json -Depth 100 | Set-Content -Path ./src-tauri/tauri.conf.json
           
           # 输出新版本号供后续步骤使用
-          echo "NEW_VERSION=$newVersion" >> $env:GITHUB_OUTPUT
+          "NEW_VERSION=$newVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           echo "新版本号: v$newVersion"
         shell: pwsh
           
@@ -127,13 +127,13 @@ jobs:
           echo "找到的MSI包: $msiInstaller"
           
           if ($portableExe) {
-            echo "PORTABLE_EXE=$portableExe" >> $env:GITHUB_OUTPUT
+            "PORTABLE_EXE=$portableExe" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
           if ($setupExe) {
-            echo "SETUP_EXE=$setupExe" >> $env:GITHUB_OUTPUT
+            "SETUP_EXE=$setupExe" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
           if ($msiInstaller) {
-            echo "MSI_INSTALLER=$msiInstaller" >> $env:GITHUB_OUTPUT
+            "MSI_INSTALLER=$msiInstaller" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
         shell: pwsh
         
