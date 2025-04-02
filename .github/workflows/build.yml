@@ -119,22 +119,93 @@ jobs:
           Get-ChildItem -Path src-tauri -Recurse | Select-Object FullName
         shell: pwsh
       
-      - name: 构建并发布Tauri应用
+      # 直接使用npm命令构建Tauri应用
+      - name: 构建Tauri应用
         id: tauri_build
-        uses: tauri-apps/tauri-action@v0.5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 直接运行npm命令构建Tauri应用
+          npm run tauri build -- --verbose --target x86_64-pc-windows-msvc
+          
+          # 设置版本变量
+          $version = "${{ steps.version.outputs.NEW_VERSION }}"
+          if (-not $version) { $version = "1.0.0" }  # 默认版本号，以防提取失败
+          
+          # 查找构建产物
+          $appName = "MarkVision"
+          $msiFiles = Get-ChildItem -Path "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\msi\*.msi" -ErrorAction SilentlyContinue
+          $nsisFiles = Get-ChildItem -Path "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*.exe" -ErrorAction SilentlyContinue
+          
+          # 输出找到的文件列表
+          echo "找到的构建产物:"
+          if ($msiFiles) {
+            echo "MSI安装包:"
+            $msiFiles | ForEach-Object { echo " - $($_.FullName)" }
+            # 重命名MSI文件添加版本号
+            foreach ($file in $msiFiles) {
+              $newName = "$appName-Setup-v$version.msi"
+              Copy-Item -Path $file.FullName -Destination $newName
+              echo "已创建: $newName"
+              echo "MSI_SETUP=$newName" >> $env:GITHUB_ENV
+            }
+          } else {
+            echo "未找到MSI安装包"
+          }
+          
+          if ($nsisFiles) {
+            echo "NSIS安装包:"
+            $nsisFiles | ForEach-Object { echo " - $($_.FullName)" }
+            # 重命名NSIS文件添加版本号
+            foreach ($file in $nsisFiles) {
+              $newName = "$appName-Setup-v$version.exe"
+              Copy-Item -Path $file.FullName -Destination $newName
+              echo "已创建: $newName"
+              echo "NSIS_SETUP=$newName" >> $env:GITHUB_ENV
+            }
+          } else {
+            echo "未找到NSIS安装包"
+          }
+          
+          # 创建更新文件
+          if ($msiFiles -or $nsisFiles) {
+            # 创建latest.json用于自动更新
+            $updateJson = @{
+              version = $version
+              notes = "MarkVision 版本 $version 更新"
+              pub_date = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+              platforms = @{
+                "windows-x86_64" = @{
+                  signature = ""
+                  url = "https://github.com/li5bo5/MarkVision/releases/download/v$version/MarkVision-Setup-v$version.exe"
+                }
+              }
+            }
+            
+            $updateJson | ConvertTo-Json -Depth 10 | Out-File -FilePath "latest.json" -Encoding utf8
+            echo "已创建更新文件: latest.json"
+            
+            # 标记构建成功
+            echo "BUILD_SUCCESS=true" >> $env:GITHUB_ENV
+          } else {
+            echo "错误: 未找到任何构建产物，构建可能失败"
+            exit 1
+          }
+        shell: pwsh
+
+      # 创建GitHub Release并上传文件
+      - name: 创建GitHub Release
+        if: env.BUILD_SUCCESS == 'true'
+        uses: softprops/action-gh-release@v1
         with:
-          tagName: v${{ steps.version.outputs.NEW_VERSION }}
-          releaseName: "MarkVision v${{ steps.version.outputs.NEW_VERSION }}"
-          releaseBody: "MarkVision 发布版本，包含可执行文件。"
-          releaseDraft: false
+          tag_name: v${{ steps.version.outputs.NEW_VERSION }}
+          name: "MarkVision v${{ steps.version.outputs.NEW_VERSION }}"
+          body: "MarkVision 发布版本，包含安装包和便携版。"
+          draft: false
           prerelease: false
-          includeUpdaterJson: true
-          includeRelease: true
-          includeDebug: false
-          tauriScript: "npm run tauri"
-          args: --verbose --target x86_64-pc-windows-msvc
+          files: |
+            ${{ env.MSI_SETUP }}
+            ${{ env.NSIS_SETUP }}
+            latest.json
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # 创建便携式版本
       - name: 创建便携式版本
