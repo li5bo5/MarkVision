@@ -1,5 +1,6 @@
 import { renderMarkdown } from './renderer.js';
-import { saveMarkdownToFile, exportToPDF, openMarkdownFile } from './file.js';
+import { openMarkdownFile } from './file.js';
+import SyncScroll from './SyncScroll.js';
 
 // 防抖函数
 function debounce(func, wait) {
@@ -21,16 +22,11 @@ export function initEvents() {
   
   // 按钮元素
   const openBtn = document.getElementById('open-btn');
-  const exportPdfBtn = document.getElementById('export-pdf-btn');
-  const clearBtn = document.getElementById('clear-btn');
   
   // 状态栏元素
   const wordCount = document.getElementById('word-count');
-  const saveStatus = document.getElementById('save-status');
   
   // 滚动同步相关变量
-  let isScrolling = false;
-  let isSyncEnabled = true;
   let unsavedChanges = false;
   
   // 创建滚动条占位元素
@@ -93,173 +89,70 @@ export function initEvents() {
     document.getElementById('word-count').textContent = `${charCount} 字符 | ${wordCount} 单词`;
   }
   
-  // 标记有未保存的更改
-  function markUnsaved() {
-    unsavedChanges = true;
-    saveStatus.textContent = '未保存';
-  }
+  // 初始化同步滚动
+  let syncScroll = null;
   
-  // 标记已保存
-  function markSaved() {
-    unsavedChanges = false;
-    saveStatus.textContent = '已保存';
-    setTimeout(() => {
-      saveStatus.textContent = '';
-    }, 2000);
-  }
-  
-  // 根据映射关系获取对应的滚动位置
-  function getCorrespondingPosition(sourcePos, sourceType) {
-    // 使用百分比同步
-    if (sourceType === 'editor') {
-      const editorScrollable = markdownInput.scrollHeight - markdownInput.clientHeight;
-      const previewScrollable = previewContent.scrollHeight - previewContent.clientHeight;
-      if (editorScrollable <= 0 || previewScrollable <= 0) return 0;
-      
-      const scrollPercentage = sourcePos / editorScrollable;
-      return scrollPercentage * previewScrollable;
-    } else {
-      const editorScrollable = markdownInput.scrollHeight - markdownInput.clientHeight;
-      const previewScrollable = previewContent.scrollHeight - previewContent.clientHeight;
-      if (editorScrollable <= 0 || previewScrollable <= 0) return 0;
-      
-      const scrollPercentage = sourcePos / previewScrollable;
-      return scrollPercentage * editorScrollable;
-    }
-  }
-  
-  // Markdown输入更新
-  markdownInput.addEventListener('input', debounce(function() {
-    const markdown = this.value;
-    renderMarkdown(markdown, previewContent);
+  // 输入事件监听
+  markdownInput.addEventListener('input', debounce(() => {
+    const content = markdownInput.value;
     
-    // 保存到localStorage
-    localStorage.setItem('markdownContent', markdown);
+    // 保存到本地存储
+    localStorage.setItem('markdownContent', content);
+    
+    // 标记有未保存的更改
+    unsavedChanges = true;
     
     // 更新字数统计
     updateWordCount();
     
-    // 标记未保存
-    markUnsaved();
+    // 渲染 Markdown
+    renderMarkdown();
+    
+    // 延迟创建同步滚动实例，确保 DOM 已更新
+    setTimeout(() => {
+      if (!syncScroll) {
+        // 初始化同步滚动
+        syncScroll = new SyncScroll(markdownInput, previewContent);
+      }
+    }, 100);
   }, 300));
   
-  // 监听渲染完成事件
-  document.addEventListener('renderComplete', (event) => {
-    // 渲染完成后检查水平滚动条
-    setTimeout(checkHorizontalScrollbars, 100);
-    console.log('渲染完成');
-  });
-  
-  // 编辑器滚动同步到预览
-  markdownInput.addEventListener('scroll', function() {
-    if (isScrolling || !isSyncEnabled) return;
-    
-    isScrolling = true;
-    const previewScrollTop = getCorrespondingPosition(this.scrollTop, 'editor');
-    previewContent.scrollTop = previewScrollTop;
-    
-    setTimeout(() => {
-      isScrolling = false;
-    }, 100);
-  });
-  
-  // 预览滚动同步到编辑器
-  previewContent.addEventListener('scroll', function() {
-    if (isScrolling || !isSyncEnabled) return;
-    
-    isScrolling = true;
-    const editorScrollTop = getCorrespondingPosition(this.scrollTop, 'preview');
-    markdownInput.scrollTop = editorScrollTop;
-    
-    setTimeout(() => {
-      isScrolling = false;
-    }, 100);
-  });
-  
-  // 打开文件
-  if (openBtn) {
-    openBtn.addEventListener('click', () => {
-      if (unsavedChanges && !confirm('您有未保存的更改，确定要打开其他文件吗？')) {
-        return;
+  // 文件导入事件
+  openBtn.addEventListener('click', async () => {
+    try {
+      if (unsavedChanges) {
+        const confirm = window.confirm('当前有未保存的更改，确定要打开新文件吗？');
+        if (!confirm) return;
       }
-      openMarkdownFile((content) => {
-        markdownInput.value = content;
-        renderMarkdown(content, previewContent);
-        updateWordCount();
-        localStorage.setItem('markdownContent', content);
-        markUnsaved();
-      });
-    });
-  }
-  
-  // 导出PDF
-  if (exportPdfBtn) {
-    exportPdfBtn.addEventListener('click', () => {
-      exportToPDF(previewContent);
-    });
-  }
-  
-  // 清空按钮
-  if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-      if (markdownInput.value.trim() === '' || confirm('确定要清空当前内容吗？')) {
-        markdownInput.value = '';
-        renderMarkdown('', previewContent);
-        updateWordCount();
-        localStorage.removeItem('markdownContent');
-        markUnsaved();
-      }
-    });
-  }
-  
-  // 键盘快捷键
-  document.addEventListener('keydown', (e) => {
-    // Tab缩进处理
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      // 在列表中增加缩进功能
-      const cursorPos = markdownInput.selectionStart;
-      const lineStart = markdownInput.value.lastIndexOf('\n', cursorPos - 1) + 1;
-      const currentLine = markdownInput.value.substring(lineStart, cursorPos);
       
-      // 检查是否在列表项中
-      if (/^(\s*)([-*+]|\d+\.)\s/.test(currentLine)) {
-        const beforeCursor = markdownInput.value.substring(0, lineStart);
-        const afterCursor = markdownInput.value.substring(lineStart);
-        
-        if (e.shiftKey) {
-          // 减少缩进
-          if (afterCursor.startsWith('  ')) {
-            // 删除两个空格
-            markdownInput.value = beforeCursor + afterCursor.substring(2);
-            markdownInput.selectionStart = markdownInput.selectionEnd = cursorPos - 2;
-          }
-        } else {
-          // 增加缩进
-          markdownInput.value = beforeCursor + '  ' + afterCursor;
-          markdownInput.selectionStart = markdownInput.selectionEnd = cursorPos + 2;
-        }
-        // 触发内容更新
+      const content = await openMarkdownFile();
+      if (content !== null) {
+        markdownInput.value = content;
+        // 触发 input 事件以更新预览
         markdownInput.dispatchEvent(new Event('input'));
-      } else {
-        // 常规Tab行为 - 插入两个空格
-        const beforeCursor = markdownInput.value.substring(0, cursorPos);
-        const afterCursor = markdownInput.value.substring(cursorPos);
-        markdownInput.value = beforeCursor + '  ' + afterCursor;
-        markdownInput.selectionStart = markdownInput.selectionEnd = cursorPos + 2;
-        markdownInput.dispatchEvent(new Event('input'));
+        unsavedChanges = false;
       }
+    } catch (error) {
+      console.error('打开文件失败:', error);
+      alert(`打开文件失败: ${error.message}`);
     }
   });
   
-  // 初始化字数统计
-  updateWordCount();
+  // 关闭窗口前确认
+  window.addEventListener('beforeunload', (event) => {
+    if (unsavedChanges) {
+      // 标准的关闭确认信息
+      event.preventDefault();
+      event.returnValue = '有未保存的更改，确定要离开吗？';
+      return event.returnValue;
+    }
+  });
   
-  // 初始加载文档内容
-  const savedContent = localStorage.getItem('markdownContent');
-  if (savedContent) {
-    markdownInput.value = savedContent;
-    renderMarkdown(savedContent, previewContent);
-    updateWordCount();
-  }
+  // 首次加载时更新字数统计
+  updateWordCount();
 }
+
+// 导出默认对象
+export default {
+  initEvents
+};

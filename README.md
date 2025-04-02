@@ -15,27 +15,29 @@
 - 实时Markdown预览
 - 支持选中文本同步高亮
 - 滚动同步
+  - 基于标题元素的精准映射同步
+  - 平滑滚动体验
 - 代码高亮显示
 - 导出为PDF
 - 便携式运行模式
 - 自动发布与版本更新
 
-## 下载与安装
+## 变更日志
 
-MarkVision提供两种使用方式：
+### 最新更新
+- 移除了文件保存功能
+- 移除了内容清空功能
+- 优化滚动同步功能
+  - 添加基于标题元素的精准映射
+  - 改进滚动体验，减少抖动
 
-### 安装版
-
-1. 从 [GitHub Releases](https://github.com/用户名/MarkVision/releases) 下载最新的安装包 (`.msi`)
-2. 双击安装包进行安装
-3. 安装完成后，从开始菜单启动MarkVision
+## 食用
 
 ### 便携版
 
-1. 从 [GitHub Releases](https://github.com/用户名/MarkVision/releases) 下载最新的便携版压缩包 (`.zip`)
-2. 解压到任意位置（如U盘）
+1. 从 [GitHub Releases](https://github.com/li5bo5/MarkVision/releases) 下载最新的便携版压缩包 (`.zip`)
+2. 解压到任意位置（如桌面）
 3. 双击 `MarkVision.exe` 即可运行，无需安装
-4. 所有配置和数据将保存在应用程序目录的 `config` 和 `data` 文件夹中
 
 ## 开发说明
 
@@ -45,34 +47,6 @@ MarkVision提供两种使用方式：
 - 后端: Tauri (Rust)
 - 构建: Vite
 - 自动发布: GitHub Actions
-
-### 本地开发环境搭建
-
-1. 安装必要的依赖：
-   - [Node.js](https://nodejs.org/) (v16+)
-   - [Rust](https://www.rust-lang.org/)
-   - [Visual Studio C++ 构建工具](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
-
-2. 克隆仓库：
-   ```
-   git clone https://github.com/用户名/MarkVision.git
-   cd MarkVision
-   ```
-
-3. 安装依赖：
-   ```
-   npm install
-   ```
-
-4. 开发模式启动：
-   ```
-   npm run tauri dev
-   ```
-
-5. 构建应用：
-   ```
-   npm run tauri build
-   ```
 
 ### 自动构建与发布
 
