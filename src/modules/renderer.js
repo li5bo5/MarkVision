@@ -1,179 +1,174 @@
 import { marked } from 'marked';
 import hljs from 'highlight.js';
+import SyncScroll from './SyncScroll.js';
+import MarkdownParser from '../../MarkdownParser.js';
+
+// Instantiate MarkdownParser with the imported marked instance
+const markdownParser = new MarkdownParser(marked);
+
+// 用于存储被保护的公式
+let protectedBlockMath = [];
+let protectedInlineMath = [];
 
 /**
- * 设置Markdown渲染器
+ * 设置 Markdown 渲染器
  */
 export function setupMarkdownRenderer() {
-  // 创建自定义渲染器
-  const renderer = new marked.Renderer();
+  const markdownInput = document.getElementById('markdown-input');
+  const previewContent = document.getElementById('preview-content');
   
-  // 自定义代码块渲染，添加行号
-  renderer.code = function(code, language) {
-    const validLang = !!(language && hljs.getLanguage(language));
-    const highlighted = validLang ? hljs.highlight(code, { language }).value : hljs.highlightAuto(code).value;
-    
-    // 添加行号
-    const lines = highlighted.split('\n');
-    const lineNumbers = lines.map((_, index) => `<span class="line-number">${index + 1}</span>`).join('');
-    
-    return `<div class="code-block-wrapper">
-              <div class="line-numbers">${lineNumbers}</div>
-              <pre><code class="${language || ''}">${highlighted}</code></pre>
-            </div>`;
-  };
+  // 确保元素存在
+  if (!markdownInput || !previewContent) {
+    console.error('找不到必要的 DOM 元素');
+    return;
+  }
   
-  // 自定义表格渲染
-  renderer.table = function(header, body) {
-    return `<table class="table">
-              <thead>${header}</thead>
-              <tbody>${body}</tbody>
-            </table>`;
-  };
+  // 初始化同步滚动
+  let syncScroll = null;
   
-  // 设置marked选项
-  marked.setOptions({
-    renderer: renderer,
-    gfm: true,
-    breaks: true,
-    pedantic: false,
-    sanitize: false,
-    smartLists: true,
-    smartypants: true
+  // 监听输入变化，渲染预览
+  markdownInput.addEventListener('input', () => {
+    renderMarkdown();
+  
+    // 如果同步滚动实例不存在，则创建
+    // 延迟创建，确保 DOM 结构已更新
+    setTimeout(() => {
+      // Simplified check: just need previewContent
+      if (!syncScroll && previewContent.innerHTML) {
+        syncScroll = new SyncScroll(markdownInput, previewContent);
+      }
+    }, 100); // 延迟 100ms
   });
+  
+  // Initial render on load (optional but good practice)
+  renderMarkdown();
 }
 
 /**
- * 渲染Markdown内容
- * @param {string} markdown - Markdown文本
- * @param {HTMLElement} targetElement - 目标DOM元素
+ * 渲染 Markdown 内容为 HTML
  */
-export function renderMarkdown(markdown, targetElement) {
+export function renderMarkdown() {
+  const markdownInput = document.getElementById('markdown-input');
+  const previewContent = document.getElementById('preview-content');
+  
+  if (!markdownInput || !previewContent) return;
+  
+  let markdown = markdownInput.value;
+  
+  // 1. 保护公式
+  markdown = protectMathFormulas(markdown);
+  
+  let html = '';
+  
+  // Use the instantiated markdownParser directly
   try {
-    // 处理数学公式，防止被Markdown解析
-    let processedData = protectMathFormulas(markdown);
+    // 创建临时容器，将 Markdown 文本按行分割并转换为 DOM 元素
+    const tempContainer = document.createElement('div');
+    const lines = markdown.split('\n');
     
-    // 渲染Markdown - 确保传入的是文本而不是对象
-    const html = marked(processedData.text);
+    // 为每行创建带 data-index 的 DOM 元素
+    lines.forEach((line, index) => {
+      const lineElement = document.createElement('div');
+      lineElement.textContent = line;
+      lineElement.dataset.index = index;
+      tempContainer.appendChild(lineElement);
+    });
     
-    // 恢复数学公式并渲染
-    const finalHtml = renderMathFormulas(html, processedData.blockMath, processedData.inlineMath);
+    // 2. 使用 MarkdownParser 解析 (处理占位符)
+    html = markdownParser.compile(tempContainer.childNodes);
     
-    // 更新DOM
-    targetElement.innerHTML = finalHtml;
+    // 3. 恢复公式
+    html = restoreMathFormulas(html);
     
-    // 触发MathJax渲染（如果可用）
+    previewContent.innerHTML = html;
+    
+    // 处理代码高亮
+    processCodeBlocks();
+    
+    // 处理数学公式
     if (window.MathJax) {
-      if (typeof window.MathJax.typesetPromise === 'function') {
-        // MathJax 3 API
-        window.MathJax.typesetPromise([targetElement]).then(() => {
-          // MathJax渲染完成后触发自定义事件
-          const event = new CustomEvent('renderComplete', { detail: { targetElement } });
-          document.dispatchEvent(event);
-        }).catch((err) => {
-          console.error('MathJax渲染错误:', err);
-        });
-      } else if (typeof window.MathJax.typeset === 'function') {
-        // 某些版本的MathJax 3可能使用此API
-        window.MathJax.typeset([targetElement]);
-        // 触发渲染完成事件
-        setTimeout(() => {
-          const event = new CustomEvent('renderComplete', { detail: { targetElement } });
-          document.dispatchEvent(event);
-        }, 200);
-      } else if (typeof window.MathJax.Hub !== 'undefined' && typeof window.MathJax.Hub.Queue === 'function') {
-        // MathJax 2 API
-        window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, targetElement]);
-        window.MathJax.Hub.Queue(() => {
-          // MathJax 2渲染完成后触发自定义事件
-          const event = new CustomEvent('renderComplete', { detail: { targetElement } });
-          document.dispatchEvent(event);
-        });
-      } else {
-        console.warn("无法找到兼容的MathJax API");
-        // 仍然触发事件，确保滚动映射更新
-        setTimeout(() => {
-          const event = new CustomEvent('renderComplete', { detail: { targetElement } });
-          document.dispatchEvent(event);
-        }, 200);
-      }
-    } else {
-      // 没有MathJax时也触发渲染完成事件
-      setTimeout(() => {
-        const event = new CustomEvent('renderComplete', { detail: { targetElement } });
-        document.dispatchEvent(event);
-      }, 100);
+      window.MathJax.typesetPromise && window.MathJax.typesetPromise([previewContent]).catch(err => console.error('MathJax typesetting error:', err));
     }
+    
+    // console.log('使用 MarkdownParser 渲染完成'); // Keep log if needed
   } catch (error) {
-    console.error('Markdown渲染失败:', error);
-    targetElement.innerHTML = `<div class="error-message">Markdown渲染失败: ${error.message}</div>`;
-    // 出错时也触发事件
-    const event = new CustomEvent('renderComplete', { detail: { targetElement, error: true } });
-    document.dispatchEvent(event);
+    // Log error if parsing fails, but don't fallback
+    console.error('Markdown 渲染失败:', error);
+    // Display error in preview area
+    previewContent.innerHTML = `<pre style="color: red;">Markdown 渲染出错:\n${error}\n\n原始 Markdown:\n${markdownInput.value}</pre>`;
   }
 }
 
 /**
  * 保护数学公式不被Markdown解析
+ * @param {string} text - 输入的 Markdown 文本
+ * @returns {string} - 将公式替换为占位符后的文本
  */
 function protectMathFormulas(text) {
-  // 使用占位符替换数学公式
-  const blockMath = [];
-  const inlineMath = [];
+  protectedBlockMath = [];
+  protectedInlineMath = [];
   
-  // 替换块级公式 - 支持$$ ... $$ 和 \[ ... \] 格式
+  // 替换块级公式 $$...$$ 和 \[...\]
   let processedText = text.replace(/(\$\$|\\\[)([\s\S]*?)(\$\$|\\\])/g, (match, open, formula, close) => {
-    const id = blockMath.length;
-    blockMath.push(formula);
-    return `BLOCK_MATH_${id}`;
+    const id = protectedBlockMath.length;
+    protectedBlockMath.push(formula);
+    // 使用 HTML 注释作为占位符
+    return `<!-- MATH_BLOCK_${id} -->`;
   });
-  
-  // 替换行内公式 - 支持$ ... $ 和 \( ... \) 格式
-  // 注意: 只匹配单行内的$...$，避免错误匹配
-  processedText = processedText.replace(/(\$|\\\\)([^\n$\\]*?)(\$|\\\\)/g, (match, open, formula, close) => {
-    // 排除单独的美元符号，比如价格
-    if (open === '$' && close === '$') {
-      // 检查前后是否有空格或者是行首行尾，避免误匹配货币符号
-      const prevChar = match.charAt(0);
-      const nextChar = match.charAt(match.length - 1);
-      const isSpaceBefore = prevChar === ' ' || prevChar === '\t' || prevChar === '\n';
-      const isSpaceAfter = nextChar === ' ' || nextChar === '\t' || nextChar === '\n';
-      
-      if (!isSpaceBefore && !isSpaceAfter) {
-        return match; // 可能是货币符号，不处理
-      }
+
+  // 替换行内公式 $...$ 和 \(...\)
+  // 增强正则，避免匹配代码块内的 `$`
+  processedText = processedText.replace(/(^|[^`])(?:(\$|\\\()([^$`\n][\s\S]*?[^$`\n])(\$|\\\)))/g, (match, prefix, open, formula, close) => {
+    // 检查是否是 \$ 或 \\(
+    if (match.startsWith('\\$') || match.startsWith('\\\\(')) {
+        return match; // 如果是转义的，则不处理
     }
-    
-    const id = inlineMath.length;
-    inlineMath.push(formula);
-    return `INLINE_MATH_${id}`;
+    const id = protectedInlineMath.length;
+    protectedInlineMath.push(formula);
+    // 将前面的非 ` 字符加回去，并使用 HTML 注释作为占位符
+    return `${prefix}<!-- MATH_INLINE_${id} -->`;
   });
-  
-  return {
-    text: processedText,
-    blockMath,
-    inlineMath
-  };
+
+  return processedText;
 }
 
 /**
- * 恢复数学公式并渲染
- * @param {string} html - 已渲染的HTML
- * @param {Array} blockMath - 块级数学公式
- * @param {Array} inlineMath - 行内数学公式
+ * 恢复 HTML 中的数学公式
+ * @param {string} html - 包含占位符的 HTML
+ * @returns {string} - 恢复公式后的 HTML
  */
-function renderMathFormulas(html, blockMath, inlineMath) {
-  // 恢复块级公式
-  let processedHtml = html.replace(/BLOCK_MATH_(\d+)/g, (match, id) => {
-    const formula = blockMath[parseInt(id)];
-    return `<div class="math-block">$$${formula}$$</div>`;
+function restoreMathFormulas(html) {
+  // 恢复块级公式 - 匹配 HTML 注释占位符
+  let processedHtml = html.replace(/<!--\s*MATH_BLOCK_(\d+)\s*-->/g, (match, id) => {
+    const formula = protectedBlockMath[parseInt(id)];
+    // 使用 MathJax 能识别的块级定界符
+    return `\\[${formula}\\]`; 
   });
-  
-  // 恢复行内公式
-  processedHtml = processedHtml.replace(/INLINE_MATH_(\d+)/g, (match, id) => {
-    const formula = inlineMath[parseInt(id)];
-    return `<span class="math-inline">$${formula}$</span>`;
+
+  // 恢复行内公式 - 匹配 HTML 注释占位符
+  processedHtml = processedHtml.replace(/<!--\s*MATH_INLINE_(\d+)\s*-->/g, (match, id) => {
+    const formula = protectedInlineMath[parseInt(id)];
+    // 使用 MathJax 能识别的行内定界符
+    return `\\(${formula}\\)`;
   });
-  
+
+  // 移除之前的调试日志
+  // console.log('HTML after restoring formulas:', processedHtml);
+
   return processedHtml;
 }
+
+/**
+ * 处理代码块高亮
+ */
+function processCodeBlocks() {
+  document.querySelectorAll('pre code').forEach((block) => {
+    hljs.highlightElement(block);
+  });
+}
+
+// 导出 ESM 兼容的默认导出
+export default {
+  setupMarkdownRenderer,
+  renderMarkdown
+};
