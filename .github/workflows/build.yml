@@ -36,16 +36,21 @@ jobs:
           # 如果没有tag，使用v0.0.0作为基础版本
           if (-not $latestTag) {
             $latestTag = "v0.0.0"
+            Write-Host "没有找到标签，使用默认版本: $latestTag"
+          } else {
+            Write-Host "找到最新标签: $latestTag"
           }
           
           # 去掉v前缀
           $currentVersion = $latestTag -replace "^v", ""
+          Write-Host "当前版本号(无前缀): $currentVersion"
           
           # 拆分版本号
           $versionParts = $currentVersion.Split('.')
           $major = [int]$versionParts[0]
           $minor = [int]$versionParts[1]
           $patch = [int]$versionParts[2]
+          Write-Host "版本组成: 主版本=$major, 次版本=$minor, 补丁版本=$patch"
           
           # 递增补丁版本号
           $patch++
@@ -54,20 +59,47 @@ jobs:
           $newVersion = "$major.$minor.$patch"
           Write-Host "新版本号: v$newVersion"
           
-          # 更新package.json
+          # 检查文件是否存在
           $packageJsonPath = "./package.json"
-          $packageJson = Get-Content -Path $packageJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
-          $packageJson.version = $newVersion
-          $packageJson | ConvertTo-Json -Depth 100 | Out-File -FilePath $packageJsonPath -Encoding UTF8
+          if (!(Test-Path $packageJsonPath)) {
+            Write-Host "错误: 找不到package.json文件"
+            exit 1
+          }
           
-          # 更新tauri.conf.json
+          try {
+            # 更新package.json
+            Write-Host "正在更新package.json..."
+            $packageJson = Get-Content -Path $packageJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $packageJson.version = $newVersion
+            $packageJson | ConvertTo-Json -Depth 100 | Out-File -FilePath $packageJsonPath -Encoding UTF8 -Force
+            Write-Host "package.json更新成功"
+          } catch {
+            Write-Host "更新package.json时发生错误: $_"
+            exit 1
+          }
+          
+          # 检查tauri配置文件是否存在
           $tauriConfPath = "./src-tauri/tauri.conf.json"
-          $tauriConf = Get-Content -Path $tauriConfPath -Raw -Encoding UTF8 | ConvertFrom-Json
-          $tauriConf.package.version = $newVersion
-          $tauriConf | ConvertTo-Json -Depth 100 | Out-File -FilePath $tauriConfPath -Encoding UTF8
+          if (!(Test-Path $tauriConfPath)) {
+            Write-Host "错误: 找不到tauri.conf.json文件"
+            exit 1
+          }
+          
+          try {
+            # 更新tauri.conf.json
+            Write-Host "正在更新tauri.conf.json..."
+            $tauriConf = Get-Content -Path $tauriConfPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            $tauriConf.package.version = $newVersion
+            $tauriConf | ConvertTo-Json -Depth 100 | Out-File -FilePath $tauriConfPath -Encoding UTF8 -Force
+            Write-Host "tauri.conf.json更新成功"
+          } catch {
+            Write-Host "更新tauri.conf.json时发生错误: $_"
+            exit 1
+          }
           
           # 输出新版本号供后续步骤使用
           echo "NEW_VERSION=$newVersion" >> $env:GITHUB_OUTPUT
+          Write-Host "版本号更新流程完成"
         shell: pwsh
           
       - name: 安装Rust
