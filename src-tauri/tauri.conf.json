@@ -49,7 +49,7 @@
       },
       "resources": [],
       "shortDescription": "Markdown预览和编辑工具",
-      "targets": ["msi", "nsis"],
+      "targets": ["none"],
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
@@ -73,7 +73,7 @@
       "active": false,
       "dialog": true,
       "endpoints": [
-        "https://github.com/用户名/MarkVision/releases/latest/download/latest.json"
+        "https://github.com/li5bo5/MarkVision/releases/latest/download/latest.json"
       ],
       "pubkey": ""
     },
