@@ -121,7 +121,7 @@ jobs:
       
       - name: 构建并发布Tauri应用
         id: tauri_build
-        uses: tauri-apps/tauri-action@v0.5.20
+        uses: tauri-apps/tauri-action@v0.5.21
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
