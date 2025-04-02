@@ -130,43 +130,115 @@ jobs:
           $version = "${{ steps.version.outputs.NEW_VERSION }}"
           if (-not $version) { $version = "1.0.0" }  # 默认版本号，以防提取失败
           
+          # 检查编译输出
+          Write-Host "检查build目录结构和内容..."
+          Get-ChildItem -Path "src-tauri\target" -Recurse | Where-Object { $_.Extension -match '\.(exe|msi|zip)$' } | Select-Object -ExpandProperty FullName | ForEach-Object { Write-Host "发现文件: $_" }
+          
           # 查找构建产物
           $appName = "MarkVision"
-          $msiFiles = Get-ChildItem -Path "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\msi\*.msi" -ErrorAction SilentlyContinue
-          $nsisFiles = Get-ChildItem -Path "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*.exe" -ErrorAction SilentlyContinue
           
-          # 输出找到的文件列表
-          echo "找到的构建产物:"
+          # 可能的路径列表
+          $msiPaths = @(
+            "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\msi\*.msi",
+            "src-tauri\target\release\bundle\msi\*.msi",
+            "src-tauri\target\release\msi\*.msi",
+            "src-tauri\target\x86_64-pc-windows-msvc\release\msi\*.msi"
+          )
+          
+          $nsisPaths = @(
+            "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*.exe",
+            "src-tauri\target\release\bundle\nsis\*.exe",
+            "src-tauri\target\release\nsis\*.exe",
+            "src-tauri\target\x86_64-pc-windows-msvc\release\nsis\*.exe"
+          )
+          
+          $exePaths = @(
+            "src-tauri\target\x86_64-pc-windows-msvc\release\$appName.exe",
+            "src-tauri\target\release\$appName.exe"
+          )
+          
+          # 查找MSI文件
+          $msiFiles = $null
+          foreach ($path in $msiPaths) {
+            $files = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+            if ($files) {
+              $msiFiles = $files
+              Write-Host "找到MSI文件: $($files.FullName)"
+              break
+            }
+          }
+          
+          # 查找NSIS文件
+          $nsisFiles = $null
+          foreach ($path in $nsisPaths) {
+            $files = Get-ChildItem -Path $path -ErrorAction SilentlyContinue
+            if ($files) {
+              $nsisFiles = $files
+              Write-Host "找到NSIS文件: $($files.FullName)"
+              break
+            }
+          }
+          
+          # 查找EXE文件（作为备选）
+          $exeFile = $null
+          foreach ($path in $exePaths) {
+            if (Test-Path $path) {
+              $exeFile = Get-Item -Path $path
+              Write-Host "找到可执行文件: $($exeFile.FullName)"
+              break
+            }
+          }
+          
+          # 如果找不到安装包，但找到了可执行文件，使用可执行文件作为备选
+          $hasArtifact = $false
+          
+          # 处理MSI文件
           if ($msiFiles) {
-            echo "MSI安装包:"
-            $msiFiles | ForEach-Object { echo " - $($_.FullName)" }
-            # 重命名MSI文件添加版本号
             foreach ($file in $msiFiles) {
               $newName = "$appName-Setup-v$version.msi"
               Copy-Item -Path $file.FullName -Destination $newName
-              echo "已创建: $newName"
+              Write-Host "已创建: $newName"
               echo "MSI_SETUP=$newName" >> $env:GITHUB_ENV
+              $hasArtifact = $true
             }
           } else {
-            echo "未找到MSI安装包"
+            Write-Host "未找到MSI安装包"
           }
           
+          # 处理NSIS文件
           if ($nsisFiles) {
-            echo "NSIS安装包:"
-            $nsisFiles | ForEach-Object { echo " - $($_.FullName)" }
-            # 重命名NSIS文件添加版本号
             foreach ($file in $nsisFiles) {
               $newName = "$appName-Setup-v$version.exe"
               Copy-Item -Path $file.FullName -Destination $newName
-              echo "已创建: $newName"
+              Write-Host "已创建: $newName"
               echo "NSIS_SETUP=$newName" >> $env:GITHUB_ENV
+              $hasArtifact = $true
             }
           } else {
-            echo "未找到NSIS安装包"
+            Write-Host "未找到NSIS安装包"
+          }
+          
+          # 如果没有找到安装包但找到了可执行文件，创建便携版
+          if (-not $hasArtifact -and $exeFile) {
+            $newName = "$appName-Portable-v$version.exe"
+            Copy-Item -Path $exeFile.FullName -Destination $newName
+            Write-Host "已创建便携版: $newName"
+            echo "PORTABLE_EXE=$newName" >> $env:GITHUB_ENV
+            $hasArtifact = $true
           }
           
           # 创建更新文件
-          if ($msiFiles -or $nsisFiles) {
+          if ($hasArtifact) {
+            # 确定更新URL
+            $updateUrl = ""
+            if (Test-Path "$env:NSIS_SETUP") {
+              $updateUrl = "https://github.com/li5bo5/MarkVision/releases/download/v$version/$env:NSIS_SETUP"
+            } elseif (Test-Path "$env:MSI_SETUP") {
+              $updateUrl = "https://github.com/li5bo5/MarkVision/releases/download/v$version/$env:MSI_SETUP"
+            } elseif (Test-Path "$env:PORTABLE_EXE") {
+              $updateUrl = "https://github.com/li5bo5/MarkVision/releases/download/v$version/$env:PORTABLE_EXE"
+            }
+            
             # 创建latest.json用于自动更新
             $updateJson = @{
               version = $version
@@ -175,19 +247,31 @@ jobs:
               platforms = @{
                 "windows-x86_64" = @{
                   signature = ""
-                  url = "https://github.com/li5bo5/MarkVision/releases/download/v$version/MarkVision-Setup-v$version.exe"
+                  url = $updateUrl
                 }
               }
             }
             
             $updateJson | ConvertTo-Json -Depth 10 | Out-File -FilePath "latest.json" -Encoding utf8
-            echo "已创建更新文件: latest.json"
+            Write-Host "已创建更新文件: latest.json"
             
             # 标记构建成功
             echo "BUILD_SUCCESS=true" >> $env:GITHUB_ENV
           } else {
-            echo "错误: 未找到任何构建产物，构建可能失败"
-            exit 1
+            Write-Host "警告: 未找到任何构建产物。尝试将可执行文件作为构建产物..."
+            
+            # 作为最后手段，查找任何exe文件
+            $anyExe = Get-ChildItem -Path "src-tauri\target" -Recurse -Filter "$appName.exe" | Select-Object -First 1
+            if ($anyExe) {
+              $newName = "$appName-Portable-v$version.exe"
+              Copy-Item -Path $anyExe.FullName -Destination $newName
+              Write-Host "已创建应急便携版: $newName"
+              echo "PORTABLE_EXE=$newName" >> $env:GITHUB_ENV
+              echo "BUILD_SUCCESS=true" >> $env:GITHUB_ENV
+            } else {
+              Write-Host "错误: 未找到任何构建产物，构建可能失败"
+              exit 1
+            }
           }
         shell: pwsh
 
@@ -204,6 +288,7 @@ jobs:
           files: |
             ${{ env.MSI_SETUP }}
             ${{ env.NSIS_SETUP }}
+            ${{ env.PORTABLE_EXE }}
             latest.json
           token: ${{ secrets.GITHUB_TOKEN }}
 

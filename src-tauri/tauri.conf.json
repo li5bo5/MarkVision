@@ -49,7 +49,7 @@
       },
       "resources": [],
       "shortDescription": "Markdown预览和编辑工具",
-      "targets": ["app"],
+      "targets": ["msi", "nsis"],
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
@@ -57,8 +57,13 @@
         "webviewInstallMode": {
           "type": "downloadBootstrapper"
         },
-        "wix": null,
-        "nsis": null
+        "wix": {
+          "language": "zh-CN"
+        },
+        "nsis": {
+          "language": "SimpChinese",
+          "installMode": "both"
+        }
       }
     },
     "security": {
