@@ -31,75 +31,74 @@ jobs:
         id: version
         run: |
           # 获取最新的tag版本号
-          $latestTag = git describe --tags --abbrev=0 2>$null
-          
-          # 如果没有tag，使用v0.0.0作为基础版本
-          if (-not $latestTag) {
-            $latestTag = "v0.0.0"
-            Write-Host "没有找到标签，使用默认版本: $latestTag"
-          } else {
-            Write-Host "找到最新标签: $latestTag"
-          }
-          
-          # 去掉v前缀
-          $currentVersion = $latestTag -replace "^v", ""
-          Write-Host "当前版本号(无前缀): $currentVersion"
-          
-          # 拆分版本号
-          $versionParts = $currentVersion.Split('.')
-          $major = [int]$versionParts[0]
-          $minor = [int]$versionParts[1]
-          $patch = [int]$versionParts[2]
-          Write-Host "版本组成: 主版本=$major, 次版本=$minor, 补丁版本=$patch"
-          
-          # 递增补丁版本号
-          $patch++
-          
-          # 组合新版本号
-          $newVersion = "$major.$minor.$patch"
-          Write-Host "新版本号: v$newVersion"
-          
-          # 检查文件是否存在
-          $packageJsonPath = "./package.json"
-          if (!(Test-Path $packageJsonPath)) {
-            Write-Host "错误: 找不到package.json文件"
-            exit 1
-          }
-          
           try {
+            $latestTag = git describe --tags --abbrev=0 2>$null
+            
+            # 如果没有tag，使用v0.0.0作为基础版本
+            if (-not $latestTag) {
+              $latestTag = "v0.0.0"
+              Write-Host "没有找到标签，使用默认版本: $latestTag"
+            } else {
+              Write-Host "找到最新标签: $latestTag"
+            }
+            
+            # 去掉v前缀
+            $currentVersion = $latestTag -replace "^v", ""
+            Write-Host "当前版本号(无前缀): $currentVersion"
+            
+            # 拆分版本号
+            $versionParts = $currentVersion.Split('.')
+            $major = [int]$versionParts[0]
+            $minor = [int]$versionParts[1]
+            $patch = [int]$versionParts[2]
+            Write-Host "版本组成: 主版本=$major, 次版本=$minor, 补丁版本=$patch"
+            
+            # 递增补丁版本号
+            $patch++
+            
+            # 组合新版本号
+            $newVersion = "$major.$minor.$patch"
+            Write-Host "新版本号: v$newVersion"
+            
+            # 检查文件是否存在
+            $packageJsonPath = "./package.json"
+            if (!(Test-Path $packageJsonPath)) {
+              Write-Host "错误: 找不到package.json文件"
+              exit 1
+            }
+            
             # 更新package.json
             Write-Host "正在更新package.json..."
             $packageJson = Get-Content -Path $packageJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
             $packageJson.version = $newVersion
             $packageJson | ConvertTo-Json -Depth 100 | Out-File -FilePath $packageJsonPath -Encoding UTF8 -Force
             Write-Host "package.json更新成功"
-          } catch {
-            Write-Host "更新package.json时发生错误: $_"
-            exit 1
-          }
-          
-          # 检查tauri配置文件是否存在
-          $tauriConfPath = "./src-tauri/tauri.conf.json"
-          if (!(Test-Path $tauriConfPath)) {
-            Write-Host "错误: 找不到tauri.conf.json文件"
-            exit 1
-          }
-          
-          try {
+            
+            # 检查tauri配置文件是否存在
+            $tauriConfPath = "./src-tauri/tauri.conf.json"
+            if (!(Test-Path $tauriConfPath)) {
+              Write-Host "错误: 找不到tauri.conf.json文件"
+              exit 1
+            }
+            
             # 更新tauri.conf.json
             Write-Host "正在更新tauri.conf.json..."
             $tauriConf = Get-Content -Path $tauriConfPath -Raw -Encoding UTF8 | ConvertFrom-Json
             $tauriConf.package.version = $newVersion
             $tauriConf | ConvertTo-Json -Depth 100 | Out-File -FilePath $tauriConfPath -Encoding UTF8 -Force
             Write-Host "tauri.conf.json更新成功"
+            
+            # 输出新版本号供后续步骤使用
+            echo "NEW_VERSION=$newVersion" >> $env:GITHUB_OUTPUT
+            Write-Host "版本号更新流程完成"
+            
+            # 确保成功退出
+            exit 0
           } catch {
-            Write-Host "更新tauri.conf.json时发生错误: $_"
+            Write-Host "::error::版本更新过程中发生错误: $_"
+            Write-Host $_.ScriptStackTrace
             exit 1
           }
-          
-          # 输出新版本号供后续步骤使用
-          echo "NEW_VERSION=$newVersion" >> $env:GITHUB_OUTPUT
-          Write-Host "版本号更新流程完成"
         shell: pwsh
           
       - name: 安装Rust
@@ -116,57 +115,76 @@ jobs:
       - name: 构建Tauri应用
         id: build_tauri
         run: |
-          # 构建Tauri应用
-          npm run tauri build -- --verbose --target x86_64-pc-windows-msvc
-          
-          # 设置版本和应用名称
-          $version = "${{ steps.version.outputs.NEW_VERSION }}"
-          $appName = "MarkVision"
-          
-          # 查找生成的exe文件
-          $exePath = Get-ChildItem -Path "src-tauri\target\x86_64-pc-windows-msvc\release\$appName.exe" -ErrorAction SilentlyContinue
-          
-          if (-not $exePath) {
-            $exePath = Get-ChildItem -Path "src-tauri\target\release\$appName.exe" -ErrorAction SilentlyContinue
-          }
-          
-          if (-not $exePath) {
-            Write-Host "寻找任何可能的exe文件..."
-            $exePath = Get-ChildItem -Path "src-tauri\target" -Recurse -Filter "$appName.exe" | Select-Object -First 1
-          }
-          
-          if (-not $exePath) {
-            Write-Host "错误: 无法找到构建产物"
-            exit 1
-          }
-          
-          Write-Host "找到可执行文件: $($exePath.FullName)"
-          
-          # 创建便携版文件名
-          $portableExeName = "$appName-v$version-portable.exe"
-          
-          # 复制并重命名exe文件
-          Copy-Item -Path $exePath.FullName -Destination $portableExeName
-          Write-Host "已创建便携版: $portableExeName"
-          
-          # 设置环境变量给后续步骤使用
-          echo "PORTABLE_EXE=$portableExeName" >> $env:GITHUB_ENV
-          
-          # 创建latest.json用于自动更新
-          $updateJson = @{
-            version = $version
-            notes = "MarkVision 版本 $version 更新"
-            pub_date = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
-            platforms = @{
-              "windows-x86_64" = @{
-                signature = ""
-                url = "https://github.com/li5bo5/MarkVision/releases/download/v$version/$portableExeName"
+          try {
+            # 构建Tauri应用
+            Write-Host "开始构建Tauri应用..."
+            npm run tauri build -- --verbose --target x86_64-pc-windows-msvc
+            
+            # 设置版本和应用名称
+            $version = "${{ steps.version.outputs.NEW_VERSION }}"
+            $appName = "MarkVision"
+            Write-Host "应用名称: $appName, 版本: $version"
+            
+            # 查找生成的exe文件
+            Write-Host "查找生成的exe文件..."
+            $exePath = Get-ChildItem -Path "src-tauri\target\x86_64-pc-windows-msvc\release\$appName.exe" -ErrorAction SilentlyContinue
+            
+            if (-not $exePath) {
+              Write-Host "在x86_64-pc-windows-msvc路径下未找到，尝试在release目录查找..."
+              $exePath = Get-ChildItem -Path "src-tauri\target\release\$appName.exe" -ErrorAction SilentlyContinue
+            }
+            
+            if (-not $exePath) {
+              Write-Host "寻找任何可能的exe文件..."
+              $exePath = Get-ChildItem -Path "src-tauri\target" -Recurse -Filter "$appName.exe" | Select-Object -First 1
+            }
+            
+            if (-not $exePath) {
+              Write-Host "::error::无法找到构建产物"
+              exit 1
+            }
+            
+            Write-Host "找到可执行文件: $($exePath.FullName)"
+            
+            # 创建便携版文件名
+            $portableExeName = "$appName-v$version-portable.exe"
+            
+            # 复制并重命名exe文件
+            Copy-Item -Path $exePath.FullName -Destination $portableExeName
+            Write-Host "已创建便携版: $portableExeName"
+            
+            # 检查是否成功创建便携版exe
+            if (!(Test-Path $portableExeName)) {
+              Write-Host "::error::创建便携版exe失败"
+              exit 1
+            }
+            
+            # 设置环境变量给后续步骤使用
+            echo "PORTABLE_EXE=$portableExeName" >> $env:GITHUB_ENV
+            
+            # 创建latest.json用于自动更新
+            $updateJson = @{
+              version = $version
+              notes = "MarkVision 版本 $version 更新"
+              pub_date = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+              platforms = @{
+                "windows-x86_64" = @{
+                  signature = ""
+                  url = "https://github.com/li5bo5/MarkVision/releases/download/v$version/$portableExeName"
+                }
               }
             }
+            
+            $updateJson | ConvertTo-Json -Depth 10 | Out-File -FilePath "latest.json" -Encoding utf8
+            Write-Host "已创建更新文件: latest.json"
+            
+            # 确保成功退出
+            exit 0
+          } catch {
+            Write-Host "::error::构建过程中发生错误: $_"
+            Write-Host $_.ScriptStackTrace
+            exit 1
           }
-          
-          $updateJson | ConvertTo-Json -Depth 10 | Out-File -FilePath "latest.json" -Encoding utf8
-          Write-Host "已创建更新文件: latest.json"
         shell: pwsh
       
       - name: 创建GitHub Release
@@ -184,8 +202,22 @@ jobs:
       
       - name: 创建新的Git标签
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git tag -a v${{ steps.version.outputs.NEW_VERSION }} -m "版本 v${{ steps.version.outputs.NEW_VERSION }}"
-          git push origin v${{ steps.version.outputs.NEW_VERSION }}
+          try {
+            Write-Host "开始创建Git标签..."
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            
+            $version = "${{ steps.version.outputs.NEW_VERSION }}"
+            Write-Host "创建标签: v$version"
+            
+            git tag -a v$version -m "版本 v$version"
+            git push origin v$version
+            
+            Write-Host "Git标签创建并推送成功"
+            exit 0
+          } catch {
+            Write-Host "::error::创建Git标签时发生错误: $_"
+            Write-Host $_.ScriptStackTrace
+            exit 1
+          }
         shell: pwsh
