@@ -49,7 +49,7 @@
       },
       "resources": [],
       "shortDescription": "Markdown预览和编辑工具",
-      "targets": ["none"],
+      "targets": ["msi", "nsis"],
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
@@ -61,8 +61,7 @@
           "language": "zh-CN"
         },
         "nsis": {
-          "language": "SimpChinese",
-          "installMode": "both"
+          "languages": ["SimpChinese"]
         }
       }
     },
